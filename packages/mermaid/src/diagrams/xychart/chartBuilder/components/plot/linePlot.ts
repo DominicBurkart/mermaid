@@ -25,6 +25,11 @@ function lineYAtX(segStart: [number, number], segEnd: [number, number], x: numbe
 
 /**
  * Check if a line segment passes through an axis-aligned bounding box.
+ *
+ * Computes the y-range of the segment within the box's x-range and checks
+ * if it overlaps with the box's y-range. This correctly detects the case
+ * where a steep line enters from above and exits below the box (or vice
+ * versa) even if neither endpoint nor any single sample point falls inside.
  */
 function doesSegmentIntersectBox(
   segStart: [number, number],
@@ -34,21 +39,43 @@ function doesSegmentIntersectBox(
   boxTop: number,
   boxBottom: number
 ): boolean {
-  // Sample the segment's y at left edge, center, and right edge of the box
-  const sampleXs = [boxLeft, (boxLeft + boxRight) / 2, boxRight];
-  for (const sx of sampleXs) {
-    const y = lineYAtX(segStart, segEnd, sx);
-    if (y !== null && y >= boxTop && y <= boxBottom) {
-      return true;
-    }
-  }
   // Check if either endpoint is inside the box
   for (const [ex, ey] of [segStart, segEnd]) {
     if (ex >= boxLeft && ex <= boxRight && ey >= boxTop && ey <= boxBottom) {
       return true;
     }
   }
-  return false;
+
+  // Compute the y-values of the line at the box's left and right x-edges
+  const yAtLeft = lineYAtX(segStart, segEnd, boxLeft);
+  const yAtRight = lineYAtX(segStart, segEnd, boxRight);
+
+  // Collect valid y-values (where segment overlaps box's x-range)
+  const ys: number[] = [];
+  if (yAtLeft !== null) {
+    ys.push(yAtLeft);
+  }
+  if (yAtRight !== null) {
+    ys.push(yAtRight);
+  }
+
+  // Also include segment endpoints that fall within the box's x-range
+  for (const [ex, ey] of [segStart, segEnd]) {
+    if (ex >= boxLeft && ex <= boxRight) {
+      ys.push(ey);
+    }
+  }
+
+  if (ys.length === 0) {
+    return false;
+  }
+
+  // The segment's y-range within the box's x-range
+  const segMinY = Math.min(...ys);
+  const segMaxY = Math.max(...ys);
+
+  // Check if the segment's y-range overlaps with the box's y-range
+  return segMaxY >= boxTop && segMinY <= boxBottom;
 }
 
 /**
