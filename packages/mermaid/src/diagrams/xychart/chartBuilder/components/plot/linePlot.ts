@@ -241,9 +241,15 @@ export class LinePlot {
           });
         } else {
           const flip = shouldFlipLabelVertical(finalData, i, label, fontSize, labelOffset);
+          // Guard: don't flip below if it would collide with the x-axis.
+          // yAxis.getRange()[1] is the inner bottom boundary of the plot area.
+          const [yRangeMin, yRangeMax] = this.yAxis.getRange();
+          const plotBottom = Math.max(yRangeMin, yRangeMax);
+          const wouldClipAxis = py + labelOffset + fontSize / 2 > plotBottom;
+          const actualFlip = flip && !wouldClipAxis;
           textData.push({
             x: px,
-            y: flip ? py + labelOffset : py - labelOffset,
+            y: actualFlip ? py + labelOffset : py - labelOffset,
             text: label,
             fill: this.plotData.strokeFill,
             verticalPos: 'middle',
